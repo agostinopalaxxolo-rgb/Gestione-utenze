@@ -415,7 +415,7 @@ body {
           spellcheck="false" oninput="clearLoginErr()">
       </div>
       <div class="fg">
-        <label>PIN (6 cifre)</label>
+        <label>PIN (4 cifre)</label>
         <input type="password" id="login-pin" class="pin-input" maxlength="4" placeholder="••••"
           oninput="if(this.value.length===4)doStudentLogin()">
       </div>
@@ -751,10 +751,11 @@ function startRealtime() {
       };
       ws.onclose = () => { setSyncStatus('error'); setTimeout(connect, 5000); };
       ws.onerror = () => setSyncStatus('error');
-      setInterval(() => { if (ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify({topic:'phoenix',event:'heartbeat',payload:{},ref:'heartbeat'})); }, 25000);
     } catch(e) { setTimeout(connect, 5000); }
   }
   connect();
+  // Heartbeat unico — non dentro connect() per evitare duplicati ad ogni riconnessione
+  setInterval(() => { if (ws && ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify({topic:'phoenix',event:'heartbeat',payload:{},ref:'heartbeat'})); }, 25000);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1217,11 +1218,34 @@ function renderAdminAptContent(aptId) {
       if (!s) return '';
       const si = st.students.indexOf(s);
       const months = getContractMonths(r);
-      const paidM  = r.paidMonths||{};\n      const paidCount = Object.keys(paidM).length;
+      const paidM  = r.paidMonths||{};
+      const paidCount = Object.keys(paidM).length;
       const dueMonths  = months.filter(m=>!m.future);
       const unpaidMonths = dueMonths.filter(m=>!paidM[m.key]);
       const arr    = unpaidMonths.length * r.amount;
-      return `<div class=\"rent-card\">\n        <div style=\"display:flex;align-items:center;gap:10px;margin-bottom:10px\">\n          <div class=\"avatar\" style=\"background:${SC[si%SC.length]};color:${ST[si%ST.length]}\">${s.name.substring(0,2).toUpperCase()}</div>\n          <div style=\"flex:1\"><div style=\"font-weight:600\">${s.name}</div><div style=\"font-size:12px;color:var(--text2)\">${fmtDate(r.startDate)} → ${r.endDate?fmtDate(r.endDate):'In corso'} · €${r.amount}/mese</div></div>\n          <div style=\"text-align:right\"><span style=\"font-weight:700;color:${arr>0?'var(--red)':'var(--green)'}\">${arr>0?'-€'+arr.toFixed(0):'✓'}</span><div style=\"font-size:10px;color:var(--text2)\">${arr>0?unpaidMonths.length+' mes'+(unpaidMonths.length===1?'e':'i')+' in ritardo':'In regola'}</div></div>\n        </div>\n        <div class=\"month-grid\">${months.map(m=>`<div class=\"month-btn admin-clickable ${m.future?'future':paidM[m.key]?'paid':'due'}\" onclick=\"${m.future?'':'adminToggleRentMonth(\\''+aptId+'\\',\\''+r.id+'\\',\\''+m.key+'\\')'}\" title=\"${m.future?'Scade il '+m.dueDate.toLocaleDateString('it-IT'):paidM[m.key]?'Clicca per annullare':'In ritardo — clicca per segnare pagato'}\">${m.label}<br><span style=\"font-size:9px\">${paidM[m.key]?'✓'+(paidM[m.key].byAdmin?' adm':''):'€'+r.amount}</span></div>`).join('')}</div>\n      </div>`;
+      const monthsHtml = months.map(m => {
+        const cls = m.future ? 'future' : paidM[m.key] ? 'paid' : 'due';
+        const clickHandler = m.future ? '' : `adminToggleRentMonth('${aptId}','${r.id}','${m.key}')`;
+        const titleAttr = m.future
+          ? 'Scade il ' + m.dueDate.toLocaleDateString('it-IT')
+          : paidM[m.key] ? 'Clicca per annullare' : 'In ritardo — clicca per segnare pagato';
+        const checkMark = paidM[m.key] ? '\u2713' + (paidM[m.key].byAdmin ? ' adm' : '') : '\u20ac' + r.amount;
+        return `<div class="month-btn admin-clickable ${cls}" onclick="${clickHandler}" title="${titleAttr}">${m.label}<br><span style="font-size:9px">${checkMark}</span></div>`;
+      }).join('');
+      return `<div class="rent-card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div class="avatar" style="background:${SC[si%SC.length]};color:${ST[si%ST.length]}">${s.name.substring(0,2).toUpperCase()}</div>
+          <div style="flex:1">
+            <div style="font-weight:600">${s.name}</div>
+            <div style="font-size:12px;color:var(--text2)">${fmtDate(r.startDate)} → ${r.endDate?fmtDate(r.endDate):'In corso'} \u00b7 \u20ac${r.amount}/mese</div>
+          </div>
+          <div style="text-align:right">
+            <span style="font-weight:700;color:${arr>0?'var(--red)':'var(--green)'}">${arr>0?'-\u20ac'+arr.toFixed(0):'\u2713'}</span>
+            <div style="font-size:10px;color:var(--text2)">${arr>0?unpaidMonths.length+' mes'+(unpaidMonths.length===1?'e':'i')+' in ritardo':'In regola'}</div>
+          </div>
+        </div>
+        <div class="month-grid">${monthsHtml}</div>
+      </div>`;
     }).join('') : ''}`;
 }
 
@@ -1328,7 +1352,7 @@ function renderManageContent(aptId) {
     <!-- Admin PIN -->
     <div class="card">
       <div class="card-title"><i class="ti ti-key"></i> PIN Proprietario</div>
-      <div class="fg"><label>Nuovo PIN (6 cifre)</label><input type="password" id="new-admin-pin" class="pin-input" maxlength="8" placeholder="••••••••"></div>
+      <div class="fg"><label>Nuovo PIN (8 cifre)</label><input type="password" id="new-admin-pin" class="pin-input" maxlength="8" placeholder="••••••••"></div>
       <div id="adm-pin-msg"></div>
       <div class="btn-row"><button class="btn primary" onclick="changeAdminPin()"><i class="ti ti-check"></i> Salva nuovo PIN</button></div>
     </div>
@@ -1372,6 +1396,69 @@ async function adminDelRent(aptId, sid) {
 // ═══════════════════════════════════════════════════════════════════════
 // ADMIN ACTIONS — STUDENTI
 // ═══════════════════════════════════════════════════════════════════════
+async function adminAddStudent(aptId) {
+  const st = aptStates[aptId];
+  const apt = APTS.find(a=>a.id===aptId);
+  showModal(`
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px"><i class="ti ti-user-plus"></i> Aggiungi studente — ${apt.icon} ${apt.name}</div>
+    <div class="fg"><label>Nome</label><input type="text" id="ns-name" placeholder="es. Mario Rossi"></div>
+    <div class="fg"><label>PIN (4 cifre)</label><input type="password" id="ns-pin" class="pin-input" maxlength="4" placeholder="••••"></div>
+    <div id="ns-err"></div>
+    <div class="btn-row">
+      <button class="btn" onclick="closeModal()">Annulla</button>
+      <button class="btn primary" onclick="adminConfirmAddStudent('${aptId}')"><i class="ti ti-check"></i> Aggiungi</button>
+    </div>`);
+}
+
+async function adminConfirmAddStudent(aptId) {
+  const name = document.getElementById('ns-name').value.trim();
+  const pin  = document.getElementById('ns-pin').value;
+  const errEl = document.getElementById('ns-err');
+  if (!name) { errEl.innerHTML=`<div class="alert error"><i class="ti ti-x"></i> Inserisci il nome.</div>`; return; }
+  if (pin.length!==4||isNaN(pin)) { errEl.innerHTML=`<div class="alert error"><i class="ti ti-x"></i> PIN di 4 cifre numeriche.</div>`; return; }
+  const st = aptStates[aptId];
+  st.students.push({ id:'s'+Date.now(), name, pin, email:null });
+  st.log.unshift({ type:'added', msg:`Studente aggiunto: ${name}`, ts:ts(), color:'added' });
+  await saveApt(aptId); closeModal(); renderAdminAll();
+  showToast(`${name} aggiunto/a ✓`, 'ok');
+}
+
+function renderSDates(aptId) {
+  const ps = document.getElementById(`nb-ps-${aptId}`).value;
+  const pe = document.getElementById(`nb-pe-${aptId}`).value;
+  const st = aptStates[aptId];
+  const el = document.getElementById(`nb-sdates-${aptId}`);
+  if (!ps || !pe || !st.students.length) { el.innerHTML=''; updateQP(aptId); return; }
+  el.innerHTML = st.students.map(s => `
+    <div class="student-date-row">
+      <div style="flex:1;font-size:13px;font-weight:500">${s.name}</div>
+      <input type="date" id="sd-${aptId}-${s.id}" value="${ps}" min="${ps}" max="${pe}"
+        style="padding:5px 8px;font-size:12px;border:1px solid var(--border2);border-radius:var(--r);font-family:'Sora',sans-serif;background:var(--surface);color:var(--text)"
+        onchange="updateQP('${aptId}')">
+    </div>`).join('');
+  updateQP(aptId);
+}
+
+function updateQP(aptId) {
+  const st  = aptStates[aptId];
+  const amt = parseFloat(document.getElementById(`nb-amt-${aptId}`)?.value);
+  const ps  = document.getElementById(`nb-ps-${aptId}`)?.value;
+  const pe  = document.getElementById(`nb-pe-${aptId}`)?.value;
+  const el  = document.getElementById(`nb-qp-${aptId}`);
+  if (!el) return;
+  if (!amt || amt <= 0 || !st.students.length) { el.innerHTML=''; return; }
+  const fakeBill = { amount:amt, periodStart:ps||null, periodEnd:pe||null, studentDates:{} };
+  st.students.forEach(s => {
+    const sd = document.getElementById(`sd-${aptId}-${s.id}`);
+    if (sd) fakeBill.studentDates[s.id] = sd.value;
+  });
+  el.innerHTML = `<div class="quota-preview"><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">ANTEPRIMA QUOTE</div>` +
+    st.students.map(s => {
+      const q = calcQuota(fakeBill, s.id, st.students);
+      return `<div class="quota-row"><span>${s.name}</span><span style="font-weight:600">€${q.toFixed(2)}</span></div>`;
+    }).join('') + `</div>`;
+}
+
 async function adminSaveName(aptId, sid) {
   const st = aptStates[aptId];
   const s  = st.students.find(x=>x.id===sid);
@@ -1388,7 +1475,7 @@ function adminChangePin(aptId, sid) {
   const s  = st.students.find(x=>x.id===sid);
   showModal(`
     <div style="font-size:16px;font-weight:700;margin-bottom:4px"><i class="ti ti-key"></i> PIN — ${s.name}</div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Imposta nuovo PIN a 6 cifre</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Imposta nuovo PIN a 4 cifre</div>
     <div class="fg"><label>Nuovo PIN</label><input type="password" id="np-in" class="pin-input" maxlength="4" placeholder="••••"></div>
     <div id="np-err"></div>
     <div class="btn-row">
@@ -1588,7 +1675,7 @@ async function adminDeleteBill(aptId, bid) {
 async function changeAdminPin() {
   const np  = document.getElementById('new-admin-pin').value;
   const msg = document.getElementById('adm-pin-msg');
-  if (np.length!==6||isNaN(np)) { msg.innerHTML=`<div class="alert error"><i class="ti ti-x"></i> 6 cifre numeriche.</div>`; return; }
+  if (np.length!==8||isNaN(np)) { msg.innerHTML=`<div class="alert error"><i class="ti ti-x"></i> 8 cifre numeriche.</div>`; return; }
   globalState.adminPin = np;
   await saveGlobal();
   msg.innerHTML=`<div class="alert success"><i class="ti ti-check"></i> PIN aggiornato!</div>`;
