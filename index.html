@@ -415,7 +415,7 @@ body {
           spellcheck="false" oninput="clearLoginErr()">
       </div>
       <div class="fg">
-        <label>PIN (4 cifre)</label>
+        <label>PIN (6 cifre)</label>
         <input type="password" id="login-pin" class="pin-input" maxlength="4" placeholder="••••"
           oninput="if(this.value.length===4)doStudentLogin()">
       </div>
@@ -442,8 +442,8 @@ body {
     <div class="login-box">
       <div class="fg">
         <label>PIN Proprietario</label>
-        <input type="password" id="admin-pin-input" class="pin-input" maxlength="4" placeholder="••••"
-          oninput="if(this.value.length===4)doAdminLogin()">
+        <input type="password" id="admin-pin-input" class="pin-input" maxlength="8" placeholder="••••••••"
+          oninput="if(this.value.length===8)doAdminLogin()">
       </div>
       <div id="admin-login-err"></div>
       <div class="btn-row" style="margin-top:6px">
@@ -625,7 +625,7 @@ const SB_URL = 'https://ypopvavpkgxtrjhuhtzi.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlwb3B2YXZwa2d4dHJqaHVodHppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTAxMDcsImV4cCI6MjA5NjQ4NjEwN30.iDoeSFIAiGY_w8VazBh-S2tOnG_8iicKXieTVAXlOME';
 
 let aptStates = {};
-let globalState = { adminPin: '2908' };
+let globalState = { adminPin: '92400361' };
 let session = { role: null, aptId: null, studentId: null };
 let pendingPay = null;
 let adminAptFilter = 'basile';
@@ -1332,7 +1332,7 @@ function renderManageContent(aptId) {
     <!-- Admin PIN -->
     <div class="card">
       <div class="card-title"><i class="ti ti-key"></i> PIN Proprietario</div>
-      <div class="fg"><label>Nuovo PIN (4 cifre)</label><input type="password" id="new-admin-pin" class="pin-input" maxlength="4" placeholder="••••"></div>
+      <div class="fg"><label>Nuovo PIN (6 cifre)</label><input type="password" id="new-admin-pin" class="pin-input" maxlength="8" placeholder="••••••••"></div>
       <div id="adm-pin-msg"></div>
       <div class="btn-row"><button class="btn primary" onclick="changeAdminPin()"><i class="ti ti-check"></i> Salva nuovo PIN</button></div>
     </div>
@@ -1392,7 +1392,7 @@ function adminChangePin(aptId, sid) {
   const s  = st.students.find(x=>x.id===sid);
   showModal(`
     <div style="font-size:16px;font-weight:700;margin-bottom:4px"><i class="ti ti-key"></i> PIN — ${s.name}</div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Imposta nuovo PIN a 4 cifre</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Imposta nuovo PIN a 6 cifre</div>
     <div class="fg"><label>Nuovo PIN</label><input type="password" id="np-in" class="pin-input" maxlength="4" placeholder="••••"></div>
     <div id="np-err"></div>
     <div class="btn-row">
@@ -1592,7 +1592,7 @@ async function adminDeleteBill(aptId, bid) {
 async function changeAdminPin() {
   const np  = document.getElementById('new-admin-pin').value;
   const msg = document.getElementById('adm-pin-msg');
-  if (np.length!==4||isNaN(np)) { msg.innerHTML=`<div class="alert error"><i class="ti ti-x"></i> 4 cifre numeriche.</div>`; return; }
+  if (np.length!==6||isNaN(np)) { msg.innerHTML=`<div class="alert error"><i class="ti ti-x"></i> 6 cifre numeriche.</div>`; return; }
   globalState.adminPin = np;
   await saveGlobal();
   msg.innerHTML=`<div class="alert success"><i class="ti ti-check"></i> PIN aggiornato!</div>`;
